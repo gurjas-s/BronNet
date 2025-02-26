@@ -9,12 +9,18 @@ def makeDBConnection():
     key = os.getenv("DB_KEY"); 
     return create_client(url,key)
 
+def getBoxScores(): 
+    url = "https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0022000181.json" #Hard code for now 
+    data = requests.get(url)
+    print(data)
+
 def main():
     """
     TO DO:
-        - Use requests to get data and update DB with necessary information
+        - Finish get getBoxScores 
     """
-    client = makeDBConnection() 
+    getBoxScores()
+    #client = makeDBConnection() 
        
 
 
