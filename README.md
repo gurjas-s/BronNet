@@ -9,7 +9,7 @@ python -m venv myenv
 source myenv/bin/activate
 ```
 
-2.Install dependencies
+2. Install dependencies
 ```
 pip install -r requirements.txt
 ```
