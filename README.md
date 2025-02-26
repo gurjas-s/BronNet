@@ -7,25 +7,22 @@
 ```
 python -m venv myenv    
 source myenv/bin/activate
-
 ```
 
-2. pip install -r requirements.txt
-
+2. Install dependencies
+```
+pip install -r requirements.txt
+```
 3. Create .env file
 
 ```
-
 touch .env
-
 ```
 Then in your .env file
 
 ```
-
 DB_URL = supabase_url
 DB_KEY = supabase_key
-
 ```
 
 Resources:
