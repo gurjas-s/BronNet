@@ -1,20 +1,21 @@
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv, dotenv_values
+import requests
 
-
-def main():
+def makeDBConnection():
     load_dotenv()
     url = os.getenv("DB_URL")
-    if not url:
-        print(url)
-        print("Error")
-    key = os.getenv("DB_KEY");
-    #url: str = os.environ.get("DB_URL")
-    #key: str = os.environ.get("DB_KEY")
-    #supabase: Client = create_client(url, key)
-    client = create_client(url,key)
-    print("hello world")
+    key = os.getenv("DB_KEY"); 
+    return create_client(url,key)
+
+def main():
+    """
+    TO DO:
+        - Use requests to get data and update DB with necessary information
+    """
+    client = makeDBConnection() 
+       
 
 
 if __name__ == "__main__":
