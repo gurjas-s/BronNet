@@ -1,10 +1,32 @@
 # BronNet
 
-Setup steps:
-1. Create VENV activate it (optional) 
-    a. python -m venv myenv
-    b. source myenv/bin/activate
+**Setup**
+
+1. Create VENV and activate it (optional) 
+
+```
+python -m venv myenv    
+source myenv/bin/activate
+
+```
+
 2. pip install -r requirements.txt
+
+3. Create .env file
+
+```
+
+touch .env
+
+```
+Then in your .env file
+
+```
+
+DB_URL = supabase_url
+DB_KEY = supabase_key
+
+```
 
 Resources:
 - https://supabase.com/docs/reference/python/initializing
