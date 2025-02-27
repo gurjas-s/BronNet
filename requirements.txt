@@ -2,5 +2,4 @@ pandas
 python-dotenv
 supabase
 requests
-flask
-apscheduler
+

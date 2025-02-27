@@ -5,8 +5,8 @@
 1. Create VENV and activate it (optional) 
 
 ```
-python -m venv myenv    
-source myenv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 ```
 
 2. Install dependencies
