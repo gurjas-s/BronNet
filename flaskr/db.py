@@ -104,53 +104,60 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
         return 
 
 def getTodayGames(client): #Adds/updates today game's to database
-    gameList = [] 
-    gameRows = []
-    statRows = []
+    try: 
+        gameList = [] 
+        gameRows = []
+        statRows = []
 
-    scoreboard = requests.get("https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json").json()
-    gamesToday = scoreboard["scoreboard"]["games"]
-    for game in gamesToday:
-        gameList.append(game["gameId"])
-    
-    for i in range(1,len(gameList)):
-         
-        url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
-        response = requests.get(url)
-        if response.status_code != 200:
-            continue
-        data = response.json()
-
-
-        time = data["game"]["gameTimeLocal"] 
-        home = data["game"]["homeTeam"]["teamTricode"] 
-        away = data["game"]["awayTeam"]["teamTricode"]
+        scoreboard = requests.get("https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json").json()
+        gamesToday = scoreboard["scoreboard"]["games"]
+        for game in gamesToday:
+            gameList.append(game["gameId"])
         
-        statKeys = data["game"]["homeTeam"]["statistics"].keys()
-        homeStatRow = {"game_id": gameList[i], "team": home}
-                
-        awayStatRow = {"game_id": gameList[i], "team": away}
-                
+        for i in range(1,len(gameList)):
+             
+            url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
+            response = requests.get(url)
+            if response.status_code != 200:
+                continue
+            data = response.json()
 
-        for key in statKeys:
-            if key.lower() == "steamfieldgoalattempts": #bug in nba games 100-200
-                homeStatRow["teamfieldgoalattempts"] = data["game"]["homeTeam"]["statistics"].get(key,0)
-                awayStatRow["teamfieldgoalattempts"] = data["game"]["awayTeam"]["statistics"].get(key,0)
-            else:
-                homeStatRow[key.lower()] = data["game"]["homeTeam"]["statistics"].get(key,0)
-                awayStatRow[key.lower()] = data["game"]["awayTeam"]["statistics"].get(key,0)
-        
-        
-        gameRow = {"game_id": gameList[i], "home_team": home, "away_team":away, "game_date":time}
-        
-        gameRows.append(gameRow)
-        statRows.append(homeStatRow)
-        statRows.append(awayStatRow)
-    
-    upsert(client,TABLES[1], gameRows) 
-    upsert(client, TABLES[2], statRows)
-      
 
+            time = data["game"]["gameTimeLocal"] 
+            home = data["game"]["homeTeam"]["teamTricode"] 
+            away = data["game"]["awayTeam"]["teamTricode"]
+            
+            statKeys = data["game"]["homeTeam"]["statistics"].keys()
+            homeStatRow = {"game_id": gameList[i], "team": home}
+                    
+            awayStatRow = {"game_id": gameList[i], "team": away}
+                    
+
+            for key in statKeys:
+                if key.lower() == "steamfieldgoalattempts": #bug in nba games 100-200
+                    homeStatRow["teamfieldgoalattempts"] = data["game"]["homeTeam"]["statistics"].get(key,0)
+                    awayStatRow["teamfieldgoalattempts"] = data["game"]["awayTeam"]["statistics"].get(key,0)
+                else:
+                    homeStatRow[key.lower()] = data["game"]["homeTeam"]["statistics"].get(key,0)
+                    awayStatRow[key.lower()] = data["game"]["awayTeam"]["statistics"].get(key,0)
+            
+            
+            gameRow = {"game_id": gameList[i], "home_team": home, "away_team":away, "game_date":time}
+            
+            gameRows.append(gameRow)
+            statRows.append(homeStatRow)
+            statRows.append(awayStatRow)
+       
+        
+            upsert(client,TABLES[1], gameRows) 
+            upsert(client, TABLES[2], statRows)
+            return {"status":"success", "message":"Games and game stats updated"}
+                    
+    except Exception as e:
+        return {
+            "status":"error",
+            "message": "Upsert error"
+        }
     
 
 def main():
@@ -160,8 +167,8 @@ def main():
     """
     client = makeDBConnection() 
     #getAllGames(client, SEASONS["REGULAR"], 24) 
-    getTodayGames(client)
-    
+    response = getTodayGames(client)
+    print(response) 
     
 
      
