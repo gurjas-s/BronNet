@@ -4,7 +4,9 @@ from dotenv import load_dotenv, dotenv_values
 import requests
 
 
-seasons = {"REGULAR":2, "PLAYOFFS":5}
+SEASONS = {"REGULAR":2, "PLAYOFFS":5}
+MAX_GAMES = 1230
+TABLES = {1:"games", 2:"gamestats"}
 
 def makeDBConnection():
     load_dotenv()
@@ -21,39 +23,90 @@ def getAllGameIds(seasonType, year):
     seasonDigit = 24
     return gameList
 
-def getAllGames(seasonType, year):
+        
+def upsert(client, tableName, rows):
+    try:
+        response = (
+
+            client.table(tableName).upsert(rows).execute()
+        )
+        return response
+    except Exception as e:
+        
+        print(f"Error during upsert for {tableName}: {error}")
+        raise
+ 
+def getAllGames(client, seasonType, year):
     gameList = [] #Stores all game Id's for the given season type and year
     gameRows = []
     statRows = []
-    for i in range(1,1230):
+    start = 534
+    batchSize = 100
+    for i in range(1,MAX_GAMES):
         gameId = f"00{seasonType}{year}{i:05d}"
         gameList.append(gameId)
     
-    for i in range(50):
-        url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"  
-        data = requests.get(url).json()
-        if data is None:
-            break
+    for i in range(start,len(gameList)):
+        
+        if len(gameRows)>=batchSize:
+            try:
+                upsert(client,TABLES[1], gameRows) 
+                upsert(client, TABLES[2], statRows)
+                gameRows = []
+                statRows = []
+                print("Added 100 games")
+            except Exception as error:
+                print(f"Error: {error}")
+                return 
+
+        url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
+        response = requests.get(url)
+        if response.status_code != 200:
+            continue
+        data = response.json()
+
+
         time = data["game"]["gameTimeLocal"] 
         home = data["game"]["homeTeam"]["teamTricode"] 
         away = data["game"]["awayTeam"]["teamTricode"]
-        gameRow = {"gameId": gameList[i], "home_team": home, "away_team":away, "game_date":time}
-        gameRows.append(gameRow) 
-         
-    return gameRows 
+        homeStats = data["game"]["homeTeam"]["statistics"]
+        awayStats = data["game"]["awayTeam"]["statistics"]
+
+        gameRow = {"game_id": gameList[i], "home_team": home, "away_team":away, "game_date":time}
+        homeStatRow = {"game_id": gameList[i], "team": home, 
+                "team_stats": homeStats}
+        awayStatRow = {"game_id": gameList[i], "team": away, 
+                "team_stats": awayStats}
         
-     
+        gameRows.append(gameRow)
+        statRows.append(homeStatRow)
+        statRows.append(awayStatRow)
+        print(f"Added game {i} to arrays")
     
+    try:
+        upsert(client,TABLES[1], gameRows) 
+        upsert(client, TABLES[2], statRows)
+        gameRows = []
+        statRows = []
+        print("Added last amount of games")
+    except Exception as error:
+        print("Error: {error}")
+        return 
+
+   
 
 def main():
     """
     TO DO:
         - Finish get getBoxScores 
     """
-    games, boxscores = getAllGames(seasons["REGULAR"], 24) 
-    print(games)
-    #client = makeDBConnection() 
-       
+    client = makeDBConnection() 
+    getAllGames(client, SEASONS["REGULAR"], 24) 
+    
+    
+
+     
+     
 
 
 if __name__ == "__main__":
