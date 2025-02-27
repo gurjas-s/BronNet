@@ -9,11 +9,16 @@ MAX_GAMES = 1230
 TABLES = {1:"games", 2:"gamestats"}
 
 def makeDBConnection():
+    
     load_dotenv()
     url = os.getenv("DB_URL")
     key = os.getenv("DB_KEY"); 
     return create_client(url,key)
 
+    
+   
+        
+        
 """
 The NBA's Game ID, 0021400001, is a 10-digit code: XXXYYGGGGG, where XXX refers to a season prefix, YY is the season year (e.g. 14 for 2014-15), and GGGGG refers to the game number (1-1230 for a full 30-team regular season).
 """
@@ -30,6 +35,7 @@ def upsert(client, tableName, rows):
 
             client.table(tableName).upsert(rows).execute()
         )
+        print("Added games to DB")
         return response
     except Exception as e:
         
@@ -151,7 +157,7 @@ def getTodayGames(client): #Adds/updates today game's to database
         
             upsert(client,TABLES[1], gameRows) 
             upsert(client, TABLES[2], statRows)
-            return {"status":"success", "message":"Games and game stats updated"}
+        return {"status":"success", "message":"Games and game stats updated"}
                     
     except Exception as e:
         return {
@@ -165,11 +171,13 @@ def main():
     TO DO:
         - Finish get getBoxScores 
     """
+  
     client = makeDBConnection() 
     #getAllGames(client, SEASONS["REGULAR"], 24) 
     response = getTodayGames(client)
     print(response) 
-    
+   
+
 
      
      

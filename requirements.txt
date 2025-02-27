@@ -2,4 +2,4 @@ pandas
 python-dotenv
 supabase
 requests
-
+httpx[http2]
