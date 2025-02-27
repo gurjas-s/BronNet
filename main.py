@@ -33,14 +33,14 @@ def upsert(client, tableName, rows):
         return response
     except Exception as e:
         
-        print(f"Error during upsert for {tableName}: {error}")
+        print(f"Error during upsert for {tableName}: {e}")
         raise
  
 def getAllGames(client, seasonType, year):
     gameList = [] #Stores all game Id's for the given season type and year
     gameRows = []
     statRows = []
-    start = 534
+    start = 1
     batchSize = 100
     for i in range(1,MAX_GAMES):
         gameId = f"00{seasonType}{year}{i:05d}"
@@ -57,7 +57,8 @@ def getAllGames(client, seasonType, year):
                 print("Added 100 games")
             except Exception as error:
                 print(f"Error: {error}")
-                return 
+                gameRows = []
+                statRows = []
 
         url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
         response = requests.get(url)
@@ -69,14 +70,23 @@ def getAllGames(client, seasonType, year):
         time = data["game"]["gameTimeLocal"] 
         home = data["game"]["homeTeam"]["teamTricode"] 
         away = data["game"]["awayTeam"]["teamTricode"]
-        homeStats = data["game"]["homeTeam"]["statistics"]
-        awayStats = data["game"]["awayTeam"]["statistics"]
+        
+        statKeys = data["game"]["homeTeam"]["statistics"].keys()
+        homeStatRow = {"game_id": gameList[i], "team": home}
+                
+        awayStatRow = {"game_id": gameList[i], "team": away}
+                
 
+        for key in statKeys:
+            if key.lower() == "steamfieldgoalattempts": #bug in nba games 100-200
+                homeStatRow["teamfieldgoalattempts"] = data["game"]["homeTeam"]["statistics"].get(key,0)
+                awayStatRow["teamfieldgoalattempts"] = data["game"]["awayTeam"]["statistics"].get(key,0)
+            else:
+                homeStatRow[key.lower()] = data["game"]["homeTeam"]["statistics"].get(key,0)
+                awayStatRow[key.lower()] = data["game"]["awayTeam"]["statistics"].get(key,0)
+        #print(homeStatRow) 
+        
         gameRow = {"game_id": gameList[i], "home_team": home, "away_team":away, "game_date":time}
-        homeStatRow = {"game_id": gameList[i], "team": home, 
-                "team_stats": homeStats}
-        awayStatRow = {"game_id": gameList[i], "team": away, 
-                "team_stats": awayStats}
         
         gameRows.append(gameRow)
         statRows.append(homeStatRow)
@@ -90,7 +100,7 @@ def getAllGames(client, seasonType, year):
         statRows = []
         print("Added last amount of games")
     except Exception as error:
-        print("Error: {error}")
+        print(f"Error: {error}")
         return 
 
    
