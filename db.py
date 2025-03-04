@@ -173,9 +173,8 @@ def main():
     """
   
     client = makeDBConnection() 
-    #getAllGames(client, SEASONS["REGULAR"], 24) 
-    response = getTodayGames(client)
-    print(response) 
+    getAllGames(client, SEASONS["REGULAR"], 24) 
+    #response = getTodayGames(client)
    
 
 
