@@ -1,0 +1,3 @@
+- Compare models that were trained with different stats to see which performs better
+- Find other hyperparamters to add
+- Add cross validation?
