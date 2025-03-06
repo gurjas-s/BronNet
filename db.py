@@ -1,4 +1,5 @@
 import os
+import sys
 from supabase import create_client, Client
 from dotenv import load_dotenv, dotenv_values
 import requests
@@ -220,16 +221,21 @@ def main():
     load_dotenv()
     url = os.getenv("DB_URL")
     key = os.getenv("DB_KEY"); 
-
-
-        
     client = create_client(url,key)
+    args = sys.argv
 
-    getAllGames(client, SEASONS["REGULAR"], 24) 
-    #response = getTodayGames(client)
-    #print(response)    
+    if len(args) > 2:
+        print("Too many arguments")
     
+    elif len(args) == 1:
 
+        response = getTodayGames(client)
+        print(response)
+   
+    elif args[1] == "all":
+        getAllGames(client,SEASONS["REGULAR"],24)
+        
+    
 
 
 
