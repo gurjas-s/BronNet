@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 from supabase import create_client
+from db import query_games_table
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
@@ -15,15 +16,16 @@ from datetime import datetime, timedelta
 load_dotenv()
 
 # Get Supabase credentials
-DB_URL = os.getenv('DB_URL')
-DB_KEY = os.getenv('DB_KEY')
+URL = os.getenv('DB_URL')
+KEY = os.getenv('DB_KEY')
 
 # Remove trailing slash from URL if present
+"""
 if DB_URL and DB_URL.endswith('/'):
     DB_URL = DB_URL[:-1]
-
+"""
 # Initialize Supabase client
-supabase = create_client(DB_URL, DB_KEY)
+supabase = create_client(URL, KEY)
 
 class NBAGamePredictor:
     def __init__(self):
@@ -38,8 +40,9 @@ class NBAGamePredictor:
         
         # Get all games
         games_response = supabase.table('games').select('*').execute()
-        games_df = pd.DataFrame(games_response.data)
         
+        games_df = pd.DataFrame(games_response.data)
+
         # Get all game stats
         stats_response = supabase.table('gamestats').select('*').execute()
         stats_df = pd.DataFrame(stats_response.data)
@@ -48,10 +51,10 @@ class NBAGamePredictor:
         
         return games_df, stats_df
     
-    def prepare_features(self, games_df, stats_df):
+    def prepare_features(self, games_df, stats_df, key_stats):
         """Prepare features for the model"""
         print("Preparing features...")
-        
+        print(key_stats) 
         # Ensure game_id is string type in both dataframes
         games_df['game_id'] = games_df['game_id'].astype(str)
         stats_df['game_id'] = stats_df['game_id'].astype(str)
@@ -65,12 +68,6 @@ class NBAGamePredictor:
         # Create a list to store prepared data
         prepared_data = []
         
-        # Define key statistics to use as features
-        key_stats = [
-            'points', 'assists', 'reboundstotal', 'steals', 'blocks', 
-            'fieldgoalspercentage', 'threepointersmade', 'threepointerattempted',
-            'turnovers', 'fieldgoalsmade', 'fieldgoalsattempted'
-        ]
         
         # Filter to include only stats columns that exist in the dataframe
         available_stats = [col for col in key_stats if col in stats_df.columns]
@@ -96,7 +93,7 @@ class NBAGamePredictor:
             game_stats = stats_df[stats_df['game_id'] == game_id]
             
             if len(game_stats) < 2:
-                print(f"Warning: Missing stats for game {game_id}")
+                print(f"Warning: Missing stats for game {game_id} and {game_stats['points']}")
                 continue
             
             # Get home and away stats
@@ -160,10 +157,10 @@ class NBAGamePredictor:
         self.feature_columns = [col for col in prepared_df.columns if col.startswith('home_avg_') or col.startswith('away_avg_')]
         
         print(f"Prepared {len(prepared_df)} games with {len(self.feature_columns)} features")
-        
+                
         return prepared_df
     
-    def train_model(self, prepared_df):
+    def train_model(self, prepared_df, save=False):
         """Train the prediction model"""
         print("Training model...")
         
@@ -218,11 +215,12 @@ class NBAGamePredictor:
         print(confusion_matrix(y_test, y_pred))
         
         # Save the model
-        joblib.dump(self.model, 'nba_prediction_model.pkl')
-        joblib.dump(self.feature_columns, 'feature_columns.pkl')
-        joblib.dump(self.team_stats_avg, 'team_stats_avg.pkl')
+        if save:
+            joblib.dump(self.model, 'nba_prediction_model.pkl')
+            joblib.dump(self.feature_columns, 'feature_columns.pkl')
+            joblib.dump(self.team_stats_avg, 'team_stats_avg.pkl')
         
-        print("Model saved to nba_prediction_model.pkl")
+            print("Model saved to nba_prediction_model.pkl")
         
         return True
     
@@ -313,13 +311,19 @@ class NBAGamePredictor:
 def main():
     # Create predictor
     predictor = NBAGamePredictor()
-    
+         # Define key statistics to use as features
+    key_stats = [
+        'points', 'assists', 'reboundstotal', 'steals', 'blocks', 
+        'fieldgoalspercentage', 'threepointersmade', 'threepointersattempted',
+        'turnovers', 'fieldgoalsmade', 'fieldgoalsattempted'
+    ]
+
     # Try to load existing model
     if not predictor.load_model():
         # If no model exists, fetch data and train a new one
         games_df, stats_df = predictor.fetch_data()
-        prepared_df = predictor.prepare_features(games_df, stats_df)
-        predictor.train_model(prepared_df)
+        prepared_df = predictor.prepare_features(games_df, stats_df, key_stats)
+        predictor.train_model(prepared_df,save=True)
     
     # Predict upcoming games
     print("\nPredicting upcoming games:")

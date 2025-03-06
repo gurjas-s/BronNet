@@ -1,3 +1,6 @@
+- Make sure prepare features is working
+- Make sure all data is being fetched
+
 - Compare models that were trained with different stats to see which performs better
 - Find other hyperparamters to add
 - Add cross validation?

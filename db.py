@@ -2,31 +2,26 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv, dotenv_values
 import requests
-
+import pandas as pd
 
 SEASONS = {"REGULAR":2, "PLAYOFFS":5}
 MAX_GAMES = 1230
 TABLES = {1:"games", 2:"gamestats"}
 
-def makeDBConnection():
-    
-    load_dotenv()
-    url = os.getenv("DB_URL")
-    key = os.getenv("DB_KEY"); 
-    return create_client(url,key)
 
     
-   
+load_dotenv()
+url = os.getenv("DB_URL")
+key = os.getenv("DB_KEY"); 
+
+
+    
+client = create_client(url,key)
         
         
 """
 The NBA's Game ID, 0021400001, is a 10-digit code: XXXYYGGGGG, where XXX refers to a season prefix, YY is the season year (e.g. 14 for 2014-15), and GGGGG refers to the game number (1-1230 for a full 30-team regular season).
 """
-
-def getAllGameIds(seasonType, year):
-
-    seasonDigit = 24
-    return gameList
 
         
 def upsert(client, tableName, rows):
@@ -56,8 +51,8 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
         
         if len(gameRows)>=batchSize:
             try:
-                upsert(client,TABLES[1], gameRows) 
-                upsert(client, TABLES[2], statRows)
+                upsert(TABLES[1], gameRows) 
+                upsert(TABLES[2], statRows)
                 gameRows = []
                 statRows = []
                 print("Added 100 games")
@@ -100,8 +95,8 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
         print(f"Added game {i} to arrays")
     
     try:
-        upsert(client,TABLES[1], gameRows) 
-        upsert(client, TABLES[2], statRows)
+        upsert(TABLES[1], gameRows) 
+        upsert(TABLES[2], statRows)
         gameRows = []
         statRows = []
         print("Added last amount of games")
@@ -155,8 +150,8 @@ def getTodayGames(client): #Adds/updates today game's to database
             statRows.append(awayStatRow)
        
         
-            upsert(client,TABLES[1], gameRows) 
-            upsert(client, TABLES[2], statRows)
+            upsert(TABLES[1], gameRows) 
+            upsert(TABLES[2], statRows)
         return {"status":"success", "message":"Games and game stats updated"}
                     
     except Exception as e:
@@ -165,21 +160,75 @@ def getTodayGames(client): #Adds/updates today game's to database
             "message": "Upsert error"
         }
     
+def query_games_table(client, limit=10):
+    """Query the games table and return results as DataFrame"""
+    try:
+        response = client.table('games').select('*').limit(limit).execute()
+        
+        if response.data:
+            df = pd.DataFrame(response.data)
+            print(f"\nSample data from games table ({len(df)} rows):")
+            print(df)
+            
+            # Get column information
+            print(f"\nColumns in games table:")
+            for column in df.columns:
+                print(f"- {column}: {df[column].dtype}")
+            
+            return df
+        else:
+            print("\nNo data found in games table")
+            return None
+    except Exception as e:
+        print(f"\nError querying games table: {str(e)}")
+        return None
+
+def query_gamestats_table(client, limit=10):
+    """Query the gamestats table and return results as DataFrame"""
+    try:
+        response = client.table('gamestats').select('*').limit(limit).execute()
+        
+        if response.data:
+            df = pd.DataFrame(response.data)
+            print(f"\nSample data from gamestats table ({len(df)} rows):")
+            
+            # Display only a subset of columns for readability
+            if len(df.columns) > 10:
+                key_stats = ['game_id', 'team', 'points', 'assists', 'rebounds', 'steals', 'blocks']
+                available_cols = [col for col in key_stats if col in df.columns]
+                print(df[available_cols])
+                print(f"...and {len(df.columns) - len(available_cols)} more columns")
+            else:
+                print(df)
+            
+            # Get column information
+            print(f"\nColumns in gamestats table ({len(df.columns)} total):")
+            for column in sorted(df.columns):
+                print(f"- {column}: {df[column].dtype}")
+            
+            return df
+        else:
+            print("\nNo data found in gamestats table")
+            return None
+    except Exception as e:
+        print(f"\nError querying gamestats table: {str(e)}")
+        return None
 
 def main():
     """
     TO DO:
         - Finish get getBoxScores 
     """
-  
-    client = makeDBConnection() 
-    getAllGames(client, SEASONS["REGULAR"], 24) 
-    #response = getTodayGames(client)
-   
 
 
-     
-     
+    #getAllGames(SEASONS["REGULAR"], 24) 
+    response = getTodayGames(client)
+    
+    
+
+
+
+
 
 
 if __name__ == "__main__":
