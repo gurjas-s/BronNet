@@ -109,25 +109,25 @@ def getTodayGames(client): #Adds/updates today game's to database
         gamesToday = scoreboard["scoreboard"]["games"]
         for game in gamesToday:
             gameList.append(game["gameId"])
-        print(len(gameList)) 
+  
         for i in range(len(gameList)):
              
             url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
-            print(url)
+   
             response = requests.get(url)
             if response.status_code != 200:
                 return {"status":"error", "msg":"today's games haven't started can't add to db"}
                 
             data = response.json()
 
-            pritn(data)
+            
             time = data["game"]["gameTimeLocal"] 
             home = data["game"]["homeTeam"]["teamTricode"] 
             away = data["game"]["awayTeam"]["teamTricode"]
             
             statKeys = data["game"]["homeTeam"]["statistics"].keys()
             homeStatRow = {"game_id": gameList[i], "team": home}
-            print(homeStatRow)             
+    
             awayStatRow = {"game_id": gameList[i], "team": away}
                     
 
@@ -141,15 +141,15 @@ def getTodayGames(client): #Adds/updates today game's to database
             
             
             gameRow = {"game_id": gameList[i], "home_team": home, "away_team":away, "game_date":time}
-            print(gameRow)        
+     
             gameRows.append(gameRow)
             statRows.append(homeStatRow)
             statRows.append(awayStatRow)
         
-        print(statRows) 
-        print(gameRows) 
-        #upsert(client, TABLES[1], gameRows) 
-        #upsert(client, TABLES[2], statRows)
+       
+      
+        upsert(client, TABLES[1], gameRows) 
+        upsert(client, TABLES[2], statRows)
         return {"status":"success", "message":"Games and game stats updated"}
                     
     except Exception as e:
