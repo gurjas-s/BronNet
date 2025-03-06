@@ -10,13 +10,6 @@ TABLES = {1:"games", 2:"gamestats"}
 
 
     
-load_dotenv()
-url = os.getenv("DB_URL")
-key = os.getenv("DB_KEY"); 
-
-
-    
-client = create_client(url,key)
         
         
 """
@@ -26,6 +19,7 @@ The NBA's Game ID, 0021400001, is a 10-digit code: XXXYYGGGGG, where XXX refers 
         
 def upsert(client, tableName, rows):
     try:
+        
         response = (
 
             client.table(tableName).upsert(rows).execute()
@@ -51,8 +45,8 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
         
         if len(gameRows)>=batchSize:
             try:
-                upsert(TABLES[1], gameRows) 
-                upsert(TABLES[2], statRows)
+                upsert(client, TABLES[1], gameRows) 
+                upsert(client, TABLES[2], statRows)
                 gameRows = []
                 statRows = []
                 print("Added 100 games")
@@ -95,8 +89,8 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
         print(f"Added game {i} to arrays")
     
     try:
-        upsert(TABLES[1], gameRows) 
-        upsert(TABLES[2], statRows)
+        upsert(client, TABLES[1], gameRows) 
+        upsert(client,TABLES[2], statRows)
         gameRows = []
         statRows = []
         print("Added last amount of games")
@@ -114,23 +108,25 @@ def getTodayGames(client): #Adds/updates today game's to database
         gamesToday = scoreboard["scoreboard"]["games"]
         for game in gamesToday:
             gameList.append(game["gameId"])
-        
-        for i in range(1,len(gameList)):
+        print(len(gameList)) 
+        for i in range(len(gameList)):
              
             url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
+            print(url)
             response = requests.get(url)
             if response.status_code != 200:
-                continue
+                return {"status":"error", "msg":"today's games haven't started can't add to db"}
+                
             data = response.json()
 
-
+            pritn(data)
             time = data["game"]["gameTimeLocal"] 
             home = data["game"]["homeTeam"]["teamTricode"] 
             away = data["game"]["awayTeam"]["teamTricode"]
             
             statKeys = data["game"]["homeTeam"]["statistics"].keys()
             homeStatRow = {"game_id": gameList[i], "team": home}
-                    
+            print(homeStatRow)             
             awayStatRow = {"game_id": gameList[i], "team": away}
                     
 
@@ -144,20 +140,21 @@ def getTodayGames(client): #Adds/updates today game's to database
             
             
             gameRow = {"game_id": gameList[i], "home_team": home, "away_team":away, "game_date":time}
-            
+            print(gameRow)        
             gameRows.append(gameRow)
             statRows.append(homeStatRow)
             statRows.append(awayStatRow)
-       
         
-            upsert(TABLES[1], gameRows) 
-            upsert(TABLES[2], statRows)
+        print(statRows) 
+        print(gameRows) 
+        #upsert(client, TABLES[1], gameRows) 
+        #upsert(client, TABLES[2], statRows)
         return {"status":"success", "message":"Games and game stats updated"}
                     
     except Exception as e:
         return {
             "status":"error",
-            "message": "Upsert error"
+            "message": e
         }
     
 def query_games_table(client, limit=10):
@@ -220,10 +217,17 @@ def main():
         - Finish get getBoxScores 
     """
 
+    load_dotenv()
+    url = os.getenv("DB_URL")
+    key = os.getenv("DB_KEY"); 
 
-    #getAllGames(SEASONS["REGULAR"], 24) 
-    response = getTodayGames(client)
-    
+
+        
+    client = create_client(url,key)
+
+    getAllGames(client, SEASONS["REGULAR"], 24) 
+    #response = getTodayGames(client)
+    #print(response)    
     
 
 
