@@ -71,8 +71,12 @@ class NBAGamePredictor:
             all_data.extend(data)
             start = start+page_size 
         #return data frames  
-        games_df, stats_df = pd.DataFrame(all_games).set_index('game_id'), pd.DataFrame(all_data).set_index(['game_id','team'])
-        print(f"Fetched {len(games_df)} games and {len(stats_df)} team stat records")
+        games_df, stats_df = pd.DataFrame(all_games), pd.DataFrame(all_data)
+        games_df['game_id'] = games_df['game_id'].astype(int) 
+        stats_df['game_id'] = stats_df['game_id'].astype(int)
+ 
+        games_df.set_index('game_id', inplace=True)
+        stats_df.set_index(['game_id', 'team'], inplace=True)
         return games_df, stats_df
     def prepare_features2(self, games_df, stats_df, key_stats):
         
@@ -93,11 +97,12 @@ class NBAGamePredictor:
         team_averages_df = pd.DataFrame(team_averages)
         prepared_list = []
         
-        for game in games_df.itertuples(index=False):
+        for game in games_df.itertuples():
+            game_id = game.Index
             home_team = game.home_team
             away_team = game.away_team
-            home_stats = stats_df.loc[(game.game_id, home_team)] if (game.game_id, home_team) in stats_df.index else None
-            away_stats = stats_df.loc[(game.game_id, away_team)] if (game.game_id, away_team) in stats_df.index else None
+            home_stats = stats_df.loc[game_id, home_team] 
+            away_stats = stats_df.loc[game_id, away_team] 
             
             if home_stats is None or away_stats is None:
                 print("missing stats")
@@ -110,7 +115,7 @@ class NBAGamePredictor:
                 'home_team':home_team, 
                 'away_team':away_team,
                 'home_win': home_win, 
-                'game_date': game['game_date']
+                'game_date': game.game_date
             }
             for name,stat in home_stats.items():
                 if name == 'team' or name == 'game_id' or not isinstance(stat, (int, float)):
@@ -129,117 +134,10 @@ class NBAGamePredictor:
             team_averages_df.loc[team_averages_df['team'] == home_team, 'count'] = n+1 
             team_averages_df.loc[team_averages_df['team'] == away_team, 'count'] = m+1 
             prepared_list.append(feature_row)
-            print("hello")         
+            
         print(len(prepared_list))
-        return
-    def prepare_features(self, games_df, stats_df, key_stats):
-        """Prepare features for the model"""
-        print("Preparing features...")
-        print(key_stats) 
-        # Ensure game_id is string type in both dataframes
-        games_df['game_id'] = games_df['game_id'].astype(str)
-        stats_df['game_id'] = stats_df['game_id'].astype(str)
-        
-        # Convert game_date to datetime
-        games_df['game_date'] = pd.to_datetime(games_df['game_date'])
-        
-        # Sort games by date
-        games_df = games_df.sort_values('game_date')
-        
-        # Create a list to store prepared data
-        prepared_data = []
-        
-        
-        # Filter to include only stats columns that exist in the dataframe
-        available_stats = [col for col in key_stats if col in stats_df.columns]
-        
-        if not available_stats:
-            print("Warning: None of the expected stats columns were found!")
-            print(f"Available columns: {stats_df.columns.tolist()}")
-            return None
-        
-        print(f"Using these statistics as features: {available_stats}")
-        
-        # Calculate rolling averages for each team
-        teams = set(games_df['home_team'].unique()) | set(games_df['away_team'].unique())
-        team_stats_history = {team: pd.DataFrame() for team in teams}
-        
-        # Process each game
-        for _, game in games_df.iterrows():
-            game_id = game['game_id']
-            home_team = game['home_team']
-            away_team = game['away_team']
-            
-            # Get stats for this game
-            game_stats = stats_df[stats_df['game_id'] == game_id]
-            
-            if len(game_stats) < 2:
-                print(f"Warning: Missing stats for game {game_id} and {game_stats['points']}")
-                continue
-            
-            # Get home and away stats
-            home_stats = game_stats[game_stats['team'] == home_team]
-            away_stats = game_stats[game_stats['team'] == away_team]
-            
-            if home_stats.empty or away_stats.empty:
-                print(f"Warning: Missing team stats for game {game_id}")
-                continue
-            
-            # Calculate team averages up to this point (excluding this game)
-            home_avg = team_stats_history[home_team][available_stats].mean() if not team_stats_history[home_team].empty else pd.Series(0, index=available_stats)
-            away_avg = team_stats_history[away_team][available_stats].mean() if not team_stats_history[away_team].empty else pd.Series(0, index=available_stats)
-            
-            # Determine the winner (1 for home team, 0 for away team)
-            if 'points' in home_stats.columns and 'points' in away_stats.columns:
-                home_points = home_stats['points'].iloc[0]
-                away_points = away_stats['points'].iloc[0]
-                home_win = 1 if home_points > away_points else 0
-            else:
-                # If points aren't available, skip this game
-                continue
-            
-            # Create feature row
-            feature_row = {
-                'game_id': game_id,
-                'game_date': game['game_date'],
-                'home_team': home_team,
-                'away_team': away_team,
-                'home_win': home_win
-            }
-            
-            # Add team average stats as features
-            for stat in available_stats:
-                if not home_avg.empty and stat in home_avg:
-                    feature_row[f'home_avg_{stat}'] = home_avg[stat]
-                else:
-                    feature_row[f'home_avg_{stat}'] = 0
-                    
-                if not away_avg.empty and stat in away_avg:
-                    feature_row[f'away_avg_{stat}'] = away_avg[stat]
-                else:
-                    feature_row[f'away_avg_{stat}'] = 0
-            
-            # Add this game's stats to team history
-            if not home_stats.empty:
-                team_stats_history[home_team] = pd.concat([team_stats_history[home_team], home_stats[available_stats]], ignore_index=True)
-            
-            if not away_stats.empty:
-                team_stats_history[away_team] = pd.concat([team_stats_history[away_team], away_stats[available_stats]], ignore_index=True)
-            
-            prepared_data.append(feature_row)
-        
-        # Convert to DataFrame
-        prepared_df = pd.DataFrame(prepared_data)
-        
-        # Store team average stats for future predictions
-        self.team_stats_avg = {team: df[available_stats].mean() for team, df in team_stats_history.items()}
-        
-        # Store feature columns
-        self.feature_columns = [col for col in prepared_df.columns if col.startswith('home_avg_') or col.startswith('away_avg_')]
-        
-        print(f"Prepared {len(prepared_df)} games with {len(self.feature_columns)} features")
-                
-        return prepared_df
+        return       
+
     
     def train_model(self, prepared_df, save=False):
         """Train the prediction model"""
