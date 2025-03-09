@@ -28,8 +28,7 @@ if DB_URL and DB_URL.endswith('/'):
 # Initialize Supabase client
 supabase = create_client(URL, KEY)
 
-        
-def fetch_data(key_stats):
+def fetch_data(requested_stats=None,all=True):
     def add(arr1, arr2):
         for a in arr1:
             arr2.append(a) 
@@ -50,9 +49,15 @@ def fetch_data(key_stats):
         add(games, all_games)   
         start = start + page_size 
     
-
-    stat_string = ','.join(key_stats)
-    select_string = 'game_id, team,' + stat_string
+    if all:
+        print("Fetching all stats")
+        select_string='*'
+    elif requested_stats==None:
+        print("No requested stats, defaulting to fetch all stats")
+        select_string = '*' 
+    else:
+        select_string = 'game_id, team,'+ ','.join(requested_stats)
+    
     all_data = []
     stats_response = supabase.table('gamestats').select(select_string).range(0,page_size).execute() 
     data = stats_response.data
@@ -66,23 +71,26 @@ def fetch_data(key_stats):
         start = start+page_size 
     #return data frames  
     games_df, stats_df = pd.DataFrame(all_games), pd.DataFrame(all_data)
-    games_df['game_id'] = games_df['game_id'].astype(int) 
-    stats_df['game_id'] = stats_df['game_id'].astype(int)
-
-    games_df.set_index('game_id', inplace=True)
-    stats_df.set_index(['game_id', 'team'], inplace=True)
     return games_df, stats_df
 
-def prepare_features(games_df, stats_df): # Convert game_date to datetime and sort
+def prepare_features(games_df, stats_df, key_stats): # Convert game_date to datetime and sort
+        
+    games_df['game_id'] = games_df['game_id'].astype(int) 
+    stats_df['game_id'] = stats_df['game_id'].astype(int)
+     
+    games_df.set_index('game_id', inplace=True)
+    stats_df.set_index(['game_id', 'team'], inplace=True)
+    stats_df = stats_df[key_stats] #Filter by requested stats
+
     games_df['game_date'] = pd.to_datetime(games_df['game_date'])
     games_df.sort_values('game_date', inplace=True)  
     #merged_df = stats_df.merge(games_df, on='game_id', how='left') 
     teams = games_df['home_team'].unique()   
     team_averages = {}
-    stats = list(stats_df.columns) 
+    
     
     for team in teams:
-        team_row = {stat:0 for stat in stats}
+        team_row = {stat:0 for stat in key_stats}
         team_row['count'] = 1
         team_averages[team] = team_row
            
@@ -131,23 +139,33 @@ def prepare_features(games_df, stats_df): # Convert game_date to datetime and so
     
     print(f"Prepared features for: {len(prepared_list)} games")
     prepared_df = pd.DataFrame(prepared_list)
-    prepared_df.to_csv('../static/features.csv')
+    
     return prepared_df 
 
 def train_model(prepared_df):
     return 
 
 def main():
-
+    games_path = '../static/games.csv'
+    stats_path = '../static/gamestats.csv'
     key_stats = [
         'points', 'assists', 'reboundstotal', 'steals', 'blocks', 
         'fieldgoalspercentage', 'threepointersmade', 'threepointersattempted',
         'turnovers', 'fieldgoalsmade', 'fieldgoalsattempted'
     ]
+
+    if os.path.exists(games_path) and os.path.exists(stats_path):
+        print("Fetching raw data from csv files")
+        raw_game_data, raw_stat_data = pd.read_csv(games_path), pd.read_csv(stats_path) #Store all data in csv to reuse
+    else:          
+        raw_game_data, raw_stat_data = fetch_data()
+        print("Storing raw data in csv file")
+        raw_game_data.to_csv(games_path)
+        raw_stat_data.to_csv(stats_path)
     
-    raw_game_data, raw_stat_data = fetch_data(key_stats)
-    prepared_data = prepare_features(raw_game_data, raw_stat_data)
-    train_model(prepared_data) 
+    prepared_features = prepare_features(raw_game_data, raw_stat_data,key_stats)
+    prepared_features.to_csv('../static/features.csv')
+    train_model(prepared_features) 
 
 
 if __name__ == "__main__":
