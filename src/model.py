@@ -51,7 +51,6 @@ def fetch_data(key_stats):
         start = start + page_size 
     
 
-    # Get all game stats
     stat_string = ','.join(key_stats)
     select_string = 'game_id, team,' + stat_string
     all_data = []
@@ -59,6 +58,7 @@ def fetch_data(key_stats):
     data = stats_response.data
     all_data.extend(data)
     start = page_size
+    
     while(len(data)==page_size):
         stats_response = supabase.table('gamestats').select(select_string).range(start,start+page_size).execute() 
         data = stats_response.data
@@ -73,8 +73,8 @@ def fetch_data(key_stats):
     stats_df.set_index(['game_id', 'team'], inplace=True)
     return games_df, stats_df
 
-def prepare_features2(games_df, stats_df): # Convert game_date to datetime and sort
-    games_df['game_te'] = pd.to_datetime(games_df['game_date'])
+def prepare_features(games_df, stats_df): # Convert game_date to datetime and sort
+    games_df['game_date'] = pd.to_datetime(games_df['game_date'])
     games_df.sort_values('game_date', inplace=True)  
     #merged_df = stats_df.merge(games_df, on='game_id', how='left') 
     teams = games_df['home_team'].unique()   
@@ -131,10 +131,11 @@ def prepare_features2(games_df, stats_df): # Convert game_date to datetime and s
     
     print(f"Prepared features for: {len(prepared_list)} games")
     prepared_df = pd.DataFrame(prepared_list)
-    prepared_df.to_csv('static/features.csv')
+    prepared_df.to_csv('../static/features.csv')
     return prepared_df 
 
-
+def train_model(prepared_df):
+    return 
 
 def main():
 
@@ -145,8 +146,8 @@ def main():
     ]
     
     raw_game_data, raw_stat_data = fetch_data(key_stats)
-    prepared_data = prepare_features2(raw_game_data, raw_stat_data)
-    #train_model(prepared_data) 
+    prepared_data = prepare_features(raw_game_data, raw_stat_data)
+    train_model(prepared_data) 
 
 
 if __name__ == "__main__":

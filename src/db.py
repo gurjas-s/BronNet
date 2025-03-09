@@ -36,7 +36,7 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
     gameList = [] #Stores all game Id's for the given season type and year
     gameRows = []
     statRows = []
-    start = 1
+    start = 700
     batchSize = 100
     for i in range(1,MAX_GAMES):
         gameId = f"00{seasonType}{year}{i:05d}"
@@ -59,6 +59,7 @@ def getAllGames(client, seasonType, year): #Adds/updates all games from the year
         url = f"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{gameList[i]}.json"
         response = requests.get(url)
         if response.status_code != 200:
+            print("Game not played yet")
             continue
         data = response.json()
 
